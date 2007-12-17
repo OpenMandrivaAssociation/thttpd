@@ -21,7 +21,7 @@ Patch0:		patch-thttpd-2.25b-re1
 Patch1:		thttpd-2.25b+impan-pl5.diff
 # http://www.ogris.de/thttpd/thttpd-2.25b.access.patch.diff
 Patch2:		thttpd-2.25b.access.patch.diff
-PreReq:		rpm-helper
+Requires(post,preun):	rpm-helper
 Provides:	webserver
 BuildRequires:	zlib-devel
 
