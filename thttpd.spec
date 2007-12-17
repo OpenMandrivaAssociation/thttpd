@@ -24,7 +24,6 @@ Patch2:		thttpd-2.25b.access.patch.diff
 PreReq:		rpm-helper
 Provides:	webserver
 BuildRequires:	zlib-devel
-BuildRoot:	%{_tmppath}/%{name}-buildroot
 
 %description
 Thttpd is a very compact no-frills httpd serving daemon that can
