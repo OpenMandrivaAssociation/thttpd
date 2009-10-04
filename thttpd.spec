@@ -1,6 +1,6 @@
 %define	name	thttpd
 %define	version	2.25b
-%define	release	%mkrel 9
+%define	release	%mkrel 10
 
 Summary:	Throttleable lightweight httpd server
 Name:		%{name}
