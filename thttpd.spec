@@ -1,3 +1,5 @@
+%define _default_patch_fuzz 2
+
 %define	name	thttpd
 %define	version	2.25b
 %define	release	%mkrel 10
