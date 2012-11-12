@@ -1,0 +1,524 @@
+diff -cr thttpd-2.25b/config.h thttpd-2.25b+impan/config.h
+*** thttpd-2.25b/config.h	Sun Nov 30 04:40:00 2003
+--- thttpd-2.25b+impan/config.h	Thu Mar 11 19:08:32 2004
+***************
+*** 39,44 ****
+--- 39,84 ----
+  ** of the ifdef.
+  */
+  
++ /* CONFIGURE: These are the style sheets used for directory indexing and
++ ** default error messages. The pathnames are relative to the www root.
++ */
++ #define DIR_INDEX_STYLE "/styles/dirlist.css"
++ #define ERROR_STYLE "/styles/error.css"
++ 
++ /* CONFIGURE: Whether to enable the image viewer or not. Enabling this will
++ ** include an option to view all images in the current directory in all
++ ** directory listings. Beware that these will not be scaled down so this
++ ** option should be used with care.
++ */
++ #define IMAGE_VIEWER
++ 
++ /* CONFIGURE: Should we include the option to create external web references
++ ** in directory listings? These are created using symbolic links, like this:
++ **   ln -s 'http://www.google.com/' 'Google website'
++ */
++ #define WEB_LINKS
++ 
++ /* CONFIGURE: Should we include the option to write descriptive texts for
++ ** directories? These are read from the file ".description" in each
++ ** directory.
++ */
++ #define DIR_DESCRIPTIONS
++ 
++ /* CONFIGURE: Enable this to include hidden and backup (*~) files in directory
++ ** listings.
++ */
++ #ifdef notdef
++ #define SHOW_DOTFILES
++ #endif
++ 
++ /* CONFIGURE: If NO_EXEC_CHECK is defined, files can be served even if they
++ ** have their execute bit set. Please observe that this can be a security risk.
++ ** Use this only if you need it!
++ */
++ #ifdef notdef
++ #define NO_EXEC_CHECK
++ #endif
++ 
+  /* CONFIGURE: CGI programs must match this pattern to get executed.  It's
+  ** a simple shell-style wildcard pattern, with * meaning any string not
+  ** containing a slash, ** meaning any string at all, and ? meaning any
+diff -cr thttpd-2.25b/libhttpd.c thttpd-2.25b+impan/libhttpd.c
+*** thttpd-2.25b/libhttpd.c	Thu Dec 25 20:06:05 2003
+--- thttpd-2.25b+impan/libhttpd.c	Fri Apr  2 19:03:35 2004
+***************
+*** 742,752 ****
+  	hc, status, title, "", extraheads, "text/html; charset=%s", (off_t) -1,
+  	(time_t) 0 );
+      (void) my_snprintf( buf, sizeof(buf), "\
+  <HTML>\n\
+! <HEAD><TITLE>%d %s</TITLE></HEAD>\n\
+! <BODY BGCOLOR=\"#cc9999\" TEXT=\"#000000\" LINK=\"#2020ff\" VLINK=\"#4040cc\">\n\
+! <H2>%d %s</H2>\n",
+! 	status, title, status, title );
+      add_response( hc, buf );
+      defang( arg, defanged_arg, sizeof(defanged_arg) );
+      (void) my_snprintf( buf, sizeof(buf), form, defanged_arg );
+--- 742,757 ----
+  	hc, status, title, "", extraheads, "text/html; charset=%s", (off_t) -1,
+  	(time_t) 0 );
+      (void) my_snprintf( buf, sizeof(buf), "\
++ <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">\n\
+  <HTML>\n\
+! <HEAD>\n\
+! <TITLE>%d %s</TITLE>\n\
+! <LINK REL=\"stylesheet\" HREF=\"%s\" TYPE=\"text/css\">\n\
+! </HEAD>\n\
+! <BODY BGCOLOR=\"#e0e0e0\" TEXT=\"#000000\" LINK=\"#202020\" VLINK=\"#303030\">\n\
+! <H2>%d %s</H2>\n\
+! <PRE><B CLASS=\"header\">",
+! 	status, title, ERROR_STYLE, status, title );
+      add_response( hc, buf );
+      defang( arg, defanged_arg, sizeof(defanged_arg) );
+      (void) my_snprintf( buf, sizeof(buf), form, defanged_arg );
+***************
+*** 769,779 ****
+      char buf[1000];
+  
+      (void) my_snprintf( buf, sizeof(buf), "\
+! <HR>\n\
+! <ADDRESS><A HREF=\"%s\">%s</A></ADDRESS>\n\
+  </BODY>\n\
+! </HTML>\n",
+! 	SERVER_ADDRESS, EXPOSED_SERVER_SOFTWARE );
+      add_response( hc, buf );
+      }
+  
+--- 774,782 ----
+      char buf[1000];
+  
+      (void) my_snprintf( buf, sizeof(buf), "\
+! </PRE><HR NOSHADE SIZE=\"1\">\n\
+  </BODY>\n\
+! </HTML>\n" );
+      add_response( hc, buf );
+      }
+  
+***************
+*** 1245,1255 ****
+  	{
+  	if ( isalnum(*from) || strchr( "/_.-~", *from ) != (char*) 0 )
+  	    {
+! 	    *to = *from;
+! 	    ++to;
+! 	    ++tolen;
+  	    }
+! 	else
+  	    {
+  	    (void) sprintf( to, "%%%02x", (int) *from & 0xff );
+  	    to += 3;
+--- 1248,1268 ----
+  	{
+  	if ( isalnum(*from) || strchr( "/_.-~", *from ) != (char*) 0 )
+  	    {
+! #ifdef __NetBSD__
+! 	    if ( strchr( "Â‰ˆ¸ﬂ≈ƒ÷‹", *from ) != (char*) 0 ) {
+! 		(void) sprintf( to, "%%%02x", (int) *from & 0xff );
+! 		to += 3;
+! 		tolen += 3;
+! 	    } else {
+! #endif
+! 		*to = *from;
+! 		++to;
+! 		++tolen;
+! #ifdef __NetBSD__
+! 		}
+! #endif
+  	    }
+! 	  else
+  	    {
+  	    (void) sprintf( to, "%%%02x", (int) *from & 0xff );
+  	    to += 3;
+***************
+*** 2668,2673 ****
+--- 2681,2708 ----
+      }
+  
+  
++ static char*
++ pretty_size(off_t size)
++ {   
++     const double VAL[] = {1024, 1048576, 1073741824};
++     const char SUFFIX[] = {'K', 'M', 'G'};
++     static char buf[16];
++     double val;
++     char suffix;
++     int i;
++ 
++     val = (double) size;
++     for (i = 0; i < 2; i++)
++         if (val < VAL[i + 1])
++             break;
++     val /= VAL[i];
++     suffix = SUFFIX[i];
++     (void) my_snprintf(buf, sizeof(buf), "%6.1f%c", val, suffix);
++ 
++     return buf;
++ }
++ 
++ 
+  static int
+  ls( httpd_conn* hc )
+      {
+***************
+*** 2695,2701 ****
+--- 2730,2745 ----
+      char* fileclass;
+      time_t now;
+      char* timestr;
++     char linkloc[610];
++     int linkloclen;
++     char descrbuf[512];
++     FILE *descrfp;
++     size_t dr;
+      ClientData client_data;
++ #ifdef IMAGE_VIEWER
++     int imgview, j;
++     char* tmpbuf;
++ #endif /*IMAGE_VIEWER*/
+  
+      dirp = opendir( hc->expnfilename );
+      if ( dirp == (DIR*) 0 )
+***************
+*** 2763,2777 ****
+  		exit( 1 );
+  		}
+  
+  	    (void) fprintf( fp, "\
+  <HTML>\n\
+! <HEAD><TITLE>Index of %.80s</TITLE></HEAD>\n\
+! <BODY BGCOLOR=\"#99cc99\" TEXT=\"#000000\" LINK=\"#2020ff\" VLINK=\"#4040cc\">\n\
+  <H2>Index of %.80s</H2>\n\
+! <PRE>\n\
+! mode  links  bytes  last-changed  name\n\
+! <HR>",
+! 		hc->encodedurl, hc->encodedurl );
+  
+  	    /* Read in names. */
+  	    nnames = 0;
+--- 2807,2869 ----
+  		exit( 1 );
+  		}
+  
++ #ifdef IMAGE_VIEWER
++ 	    if (strstr(hc->encodedurl, "?imgview") != NULL) {
++ 	    	/* Show images instead of the directory listing. */
++ 		imgview = 1;
++ 	    } else {
++ 	    	imgview = 0;
++ 	    }
++ 	    
++ 	    if ( imgview ) {
++ 	    	(void) fprintf( fp, "\
++ <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">\n\
++ <HTML>\n\
++ <HEAD>\n\
++ <TITLE>%.80s</TITLE>\n\
++ <LINK REL=\"stylesheet\" TYPE=\"text/css\" HREF=\"%s\">\n\
++ </HEAD>\n\
++ <BODY BGCOLOR=\"#e0e0e0\" TEXT=\"#000000\" LINK=\"#202020\" VLINK=\"#303030\">\n\
++ <H2>Index of %.80s - <A HREF=\"./\">hide images</A></H2>\n\
++ <PRE>\n",
++ 			hc->encodedurl, DIR_INDEX_STYLE, hc->encodedurl );
++ 	    } else {
++ 	    	(void) fprintf( fp, "\
++ <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">\n\
++ <HTML>\n\
++ <HEAD>\n\
++ <TITLE>%.80s</TITLE>\n\
++ <LINK REL=\"stylesheet\" TYPE=\"text/css\" HREF=\"%s\">\n\
++ </HEAD>\n\
++ <BODY BGCOLOR=\"#e0e0e0\" TEXT=\"#000000\" LINK=\"#202020\" VLINK=\"#303030\">\n\
++ <H2>Index of %.80s - <A HREF=\"?imgview\">show all images</A></H2>\n\
++ <PRE>\n",
++ 			hc->encodedurl, DIR_INDEX_STYLE, hc->encodedurl );
++ 	    }
++ #else /*IMAGE_VIEWER*/
+  	    (void) fprintf( fp, "\
++ <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">\n\
+  <HTML>\n\
+! <HEAD>\n\
+! <TITLE>%.80s</TITLE>\n\
+! <LINK REL=\"stylesheet\" TYPE=\"text/css\" HREF=\"%s\">\n\
+! </HEAD>\n\
+! <BODY BGCOLOR=\"#e0e0e0\" TEXT=\"#000000\" LINK=\"#202020\" VLINK=\"#303030\">\n\
+  <H2>Index of %.80s</H2>\n\
+! <PRE>\n",
+! 		hc->encodedurl, DIR_INDEX_STYLE, hc->encodedurl );
+! #endif /*IMAGE_VIEWER*/
+! 
+! #ifdef DIR_DESCRIPTIONS
+! 	    /* Check for .description file */
+! 	    snprintf(descrbuf, sizeof(descrbuf), "%s/%s", hc->expnfilename, ".description");
+! 	    if ( descrfp = fopen( descrbuf, "r" ) ) {
+! 	    	while(dr = fread( descrbuf, 1, sizeof( descrbuf ) - 1, descrfp ) ) {
+! 		    descrbuf[dr] = '\0';
+! 		    (void) fprintf( fp, "%s", descrbuf );
+! 		}
+! 	    }
+! #endif /*DIR_DESCRIPTIONS*/
+  
+  	    /* Read in names. */
+  	    nnames = 0;
+***************
+*** 2799,2804 ****
+--- 2891,2903 ----
+  		    for ( i = 0; i < maxnames; ++i )
+  			nameptrs[i] = &names[i * ( MAXPATHLEN + 1 )];
+  		    }
++ 
++ #ifndef SHOW_DOTFILES
++ 		if ( *(de->d_name) == '.' && *(de->d_name+1) != '.' )
++ 		    continue;
++ 		if ( de->d_name[strlen(de->d_name) - 1] == '~' )
++ 		    continue;
++ #endif /*SHOW_DOTFILES*/
+  		namlen = NAMLEN(de);
+  		(void) strncpy( nameptrs[nnames], de->d_name, namlen );
+  		nameptrs[nnames][namlen] = '\0';
+***************
+*** 2809,2814 ****
+--- 2908,2968 ----
+  	    /* Sort the names. */
+  	    qsort( nameptrs, nnames, sizeof(*nameptrs), name_compare );
+  
++ #ifdef IMAGE_VIEWER
++ 	if ( imgview ) {
++ 	    /* Generate image viewer output. */
++ 	    (void)  fprintf( fp, "<HR NOSHADE SIZE=\"1\">\n" );
++ 	    for ( i = 0; i < nnames; ++i )
++ 		{
++ 		httpd_realloc_str(
++ 		    &name, &maxname,
++ 		    strlen( hc->expnfilename ) + 1 + strlen( nameptrs[i] ) );
++ 		httpd_realloc_str(
++ 		    &rname, &maxrname,
++ 		    strlen( hc->origfilename ) + 1 + strlen( nameptrs[i] ) );
++ 		if ( hc->expnfilename[0] == '\0' ||
++ 		     strcmp( hc->expnfilename, "." ) == 0 )
++ 		    {
++ 		    (void) strcpy( name, nameptrs[i] );
++ 		    (void) strcpy( rname, nameptrs[i] );
++ 		    }
++ 		else
++ 		    {
++ 		    (void) my_snprintf( name, maxname,
++ 			"%s/%s", hc->expnfilename, nameptrs[i] );
++ 		    if ( strcmp( hc->origfilename, "." ) == 0 )
++ 			(void) my_snprintf( rname, maxrname,
++ 			    "%s", nameptrs[i] );
++ 		    else
++ 			(void) my_snprintf( rname, maxrname,
++ 			    "%s%s", hc->origfilename, nameptrs[i] );
++ 		    }
++ 		httpd_realloc_str(
++ 		    &encrname, &maxencrname, 3 * strlen( rname ) + 1 );
++ 		strencode( encrname, maxencrname, rname );
++ 		tmpbuf = nameptrs[i];
++ 		j = strlen( tmpbuf ) - sizeof( "123" );
++ 		if ( strlen( tmpbuf + j ) > 3 ) {
++ 		    if ( ( !strncasecmp( tmpbuf + j, ".jpg", sizeof( ".jpg" ) ) ) ||
++ 			 ( !strncasecmp( tmpbuf + j - 1, ".jpeg", sizeof( ".jpeg" ) ) ) ||
++ 			 ( !strncasecmp( tmpbuf + j, ".png", sizeof( ".png" ) ) ) ||
++ 			 ( !strncasecmp( tmpbuf + j, ".gif", sizeof( ".gif" ) ) ) ) {
++ 			(void)  fprintf( fp,
++ 			    "<TABLE CLASS=\"imgview\"><TR><TD CLASS=\"imgview\">\
++ <IMG SRC=\"/%.500s\" ALT=\"%.80s\" CLASS=\"imgview\"></TD>\
++ <TD CLASS=\"imgview\"><FONT CLASS=\"imgview\">%s</FONT></TD></TR></TABLE>\n", 
++ 			    	encrname, nameptrs[i], nameptrs[i] );
++ 			} else {
++ 			    continue;
++ 			}
++ 		    }
++ 		} 
++ 	    }
++ #endif /*IMAGE_VIEWER*/
++ 
++ 	    	(void) fprintf( fp, "\n<B CLASS=\"header\">   size  last-changed  name</B>\n\
++ </PRE><HR NOSHADE SIZE=\"1\"><PRE>" );
++ 	    
+  	    /* Generate output. */
+  	    for ( i = 0; i < nnames; ++i )
+  		{
+***************
+*** 2839,2875 ****
+  		    &encrname, &maxencrname, 3 * strlen( rname ) + 1 );
+  		strencode( encrname, maxencrname, rname );
+  
+! 		if ( stat( name, &sb ) < 0 || lstat( name, &lsb ) < 0 )
+  		    continue;
+  
+  		linkprefix = "";
+  		link[0] = '\0';
+- 		/* Break down mode word.  First the file type. */
+- 		switch ( lsb.st_mode & S_IFMT )
+- 		    {
+- 		    case S_IFIFO:  modestr[0] = 'p'; break;
+- 		    case S_IFCHR:  modestr[0] = 'c'; break;
+- 		    case S_IFDIR:  modestr[0] = 'd'; break;
+- 		    case S_IFBLK:  modestr[0] = 'b'; break;
+- 		    case S_IFREG:  modestr[0] = '-'; break;
+- 		    case S_IFSOCK: modestr[0] = 's'; break;
+- 		    case S_IFLNK:  modestr[0] = 'l';
+- 		    linklen = readlink( name, link, sizeof(link) - 1 );
+- 		    if ( linklen != -1 )
+- 			{
+- 			link[linklen] = '\0';
+- 			linkprefix = " -&gt; ";
+- 			}
+- 		    break;
+- 		    default:       modestr[0] = '?'; break;
+- 		    }
+- 		/* Now the world permissions.  Owner and group permissions
+- 		** are not of interest to web clients.
+- 		*/
+- 		modestr[1] = ( lsb.st_mode & S_IROTH ) ? 'r' : '-';
+- 		modestr[2] = ( lsb.st_mode & S_IWOTH ) ? 'w' : '-';
+- 		modestr[3] = ( lsb.st_mode & S_IXOTH ) ? 'x' : '-';
+- 		modestr[4] = '\0';
+  
+  		/* We also leave out the owner and group name, they are
+  		** also not of interest to web clients.  Plus if we're
+--- 2993,3024 ----
+  		    &encrname, &maxencrname, 3 * strlen( rname ) + 1 );
+  		strencode( encrname, maxencrname, rname );
+  
+! #ifdef WEB_LINKS
+! 		    if ( stat( name, &sb ) < 0 || lstat( name, &lsb ) < 0 )
+!                     	{
+!                             linkloclen = readlink( name, linkloc, 600 );
+!                             linkloc[linkloclen] = '\0';
+! 			    if ( !strncmp( linkloc, "http://", strlen( "http://" ) ) ) {
+!                                 (void)  fprintf( fp,
+!                                    "         Web location  <A HREF=\"%.600s\" CLASS=\"weblink\">%.80s</A>%s\n",
+!                                     linkloc,
+!                                     nameptrs[i], link );
+!                                 continue;
+!                         }
+!                     }
+! #else /*WEB_LINKS*/
+! 		    ;
+! #endif /*WEB_LINKS*/
+! 
+! #ifdef DIR_DESCRIPTIONS
+!  #ifdef SHOW_DOTFILES
+! 		if ( !strncmp( nameptrs[i], ".description", sizeof(".description") ) )
+  		    continue;
++  #endif /*SHOW_DOTFILES*/
++ #endif /*DIR_DESCRIPTIONS*/
+  
+  		linkprefix = "";
+  		link[0] = '\0';
+  
+  		/* We also leave out the owner and group name, they are
+  		** also not of interest to web clients.  Plus if we're
+***************
+*** 2906,2912 ****
+  		timestr[12] = '\0';
+  
+  		/* The ls -F file class. */
+! 		switch ( sb.st_mode & S_IFMT )
+  		    {
+  		    case S_IFDIR:  fileclass = "/"; break;
+  		    case S_IFSOCK: fileclass = "="; break;
+--- 3055,3061 ----
+  		timestr[12] = '\0';
+  
+  		/* The ls -F file class. */
+! 		switch ( lsb.st_mode & S_IFMT )
+  		    {
+  		    case S_IFDIR:  fileclass = "/"; break;
+  		    case S_IFSOCK: fileclass = "="; break;
+***************
+*** 2916,2927 ****
+  		    break;
+  		    }
+  
+  		/* And print. */
+  		(void)  fprintf( fp,
+! 		   "%s %3ld  %10lld  %s  <A HREF=\"/%.500s%s\">%.80s</A>%s%s%s\n",
+! 		    modestr, (long) lsb.st_nlink, (int64_t) lsb.st_size,
+  		    timestr, encrname, S_ISDIR(sb.st_mode) ? "/" : "",
+  		    nameptrs[i], linkprefix, link, fileclass );
+  		}
+  
+  	    (void) fprintf( fp, "</PRE></BODY>\n</HTML>\n" );
+--- 3065,3097 ----
+  		    break;
+  		    }
+  
++ 		/* Convert ".." entries to "Parent directory" */
++ 		if ( !strcmp( nameptrs[i], ".." ) ) {
++ 		    sprintf( nameptrs[i], "%s", "Parent directory" );
++ 		    fileclass = "";
++ 		}
++ 
+  		/* And print. */
++ #ifdef IMAGE_VIEWER
++ 		if ( imgview )
++ 		    (void)  fprintf( fp,
++ 		     "%s  %s  <A HREF=\"/%.500s%s?imgview\">%.80s</A>%s%s%s\n",
++ 		      S_ISDIR( sb.st_mode ) ? "       " : pretty_size( lsb.st_size ),
++ 		      timestr, encrname, S_ISDIR(sb.st_mode) ? "/" : "",
++ 		      nameptrs[i], linkprefix, link, fileclass );
++ 		else
++ 		    (void)  fprintf( fp,
++ 		     "%s  %s  <A HREF=\"/%.500s%s\">%.80s</A>%s%s%s\n",
++ 		      S_ISDIR( sb.st_mode ) ? "       " : pretty_size( lsb.st_size ),
++ 		      timestr, encrname, S_ISDIR(sb.st_mode) ? "/" : "",
++ 		      nameptrs[i], linkprefix, link, fileclass );
++ #else /*IMAGE_VIEWER*/
+  		(void)  fprintf( fp,
+! 		   "%s  %s  <A HREF=\"/%.500s%s\">%.80s</A>%s%s%s\n",
+! 		    S_ISDIR( sb.st_mode ) ? "       " : pretty_size( lsb.st_size ),
+  		    timestr, encrname, S_ISDIR(sb.st_mode) ? "/" : "",
+  		    nameptrs[i], linkprefix, link, fileclass );
++ #endif /*IMAGE_VIEWER*/
+  		}
+  
+  	    (void) fprintf( fp, "</PRE></BODY>\n</HTML>\n" );
+***************
+*** 3791,3796 ****
+--- 3961,3967 ----
+      ** trying to either serve or run a non-CGI file as CGI.   Either case
+      ** is prohibited.
+      */
++ #ifdef NO_EXEC_CHECK
+      if ( hc->sb.st_mode & S_IXOTH )
+  	{
+  	syslog(
+***************
+*** 3802,3807 ****
+--- 3973,3979 ----
+  	    hc->encodedurl );
+  	return -1;
+  	}
++ #endif /*NO_EXEC_CHECK*/
+      if ( hc->pathinfo[0] != '\0' )
+  	{
+  	syslog(
+diff -cr thttpd-2.25b/mime_types.txt thttpd-2.25b+impan/mime_types.txt
+*** thttpd-2.25b/mime_types.txt	Sun Oct 26 18:00:45 2003
+--- thttpd-2.25b+impan/mime_types.txt	Mon Jan  5 20:55:56 2004
+***************
+*** 158,163 ****
+--- 158,164 ----
+  texinfo	application/x-texinfo
+  tif	image/tiff
+  tiff	image/tiff
++ torrent	application/x-bittorrent
+  tr	application/x-troff
+  tsp	application/dsptype
+  tsv	text/tab-separated-values

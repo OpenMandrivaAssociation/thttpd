@@ -1,0 +1,7 @@
+sources:
+  "thttpd-2.25b.tar.bz2:"	c37f24c72a7c39dab71091afd4a429c22db79ef0
+  "thttpd.conf:"	cb81897e5e777d6013234563aad4802c30579415
+  "thttpd-index.html:"	1dfd58e3f3b0c5f44e5c5c72e560b9a785b66011
+  "thttpd.init:"	154d6cee75b11576ae1992b073251a81937eb058
+  "thttpd.logrotate:"	04b53eefad2e554254938ae1c500dd5331ec5238
+  "thttpd.sysconfig:"	ac920c83cd94671616e24670d170306a5ecaa015
