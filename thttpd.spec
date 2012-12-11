@@ -154,3 +154,53 @@ ln -snf "http://www.acme.com/software/thttpd/thttpd-2.25b.tar.gz" \
 %attr(0644,%{name},%{name}) /var/lib/%{name}/links/*
 
 
+
+
+%changelog
+* Mon Oct 05 2009 Oden Eriksson <oeriksson@mandriva.com> 2.25b-10mdv2010.0
++ Revision: 454070
+- fix build
+- allow fuzzy patches
+- rebuild
+
+  + Thierry Vignaud <tvignaud@mandriva.com>
+    - rebuild
+
+* Sun Aug 03 2008 Thierry Vignaud <tvignaud@mandriva.com> 2.25b-8mdv2009.0
++ Revision: 261533
+- rebuild
+
+* Wed Jul 30 2008 Thierry Vignaud <tvignaud@mandriva.com> 2.25b-7mdv2009.0
++ Revision: 254504
+- rebuild
+
+* Fri Dec 21 2007 Olivier Blin <oblin@mandriva.com> 2.25b-5mdv2008.1
++ Revision: 136546
+- restore BuildRoot
+
+  + Thierry Vignaud <tvignaud@mandriva.com>
+    - fix prereq on rpm-helper
+    - kill re-definition of %%buildroot on Pixel's request
+
+
+* Tue Mar 13 2007 Gustavo De Nardin <gustavodn@mandriva.com> 2.25b-5mdv2007.1
++ Revision: 142138
+- added LSB headers to init script
+- bunzipped plaintext Sources
+
+* Sun Jan 08 2006 Oden Eriksson <oeriksson@mandriva.com> 2.25b-4mdk
+- rebuild
+
+* Sun Dec 19 2004 Oden Eriksson <oeriksson@mandrakesoft.com> 2.25b-3mdk
+- the index.html file was incorrect, fixed
+
+* Tue Nov 16 2004 Oden Eriksson <oeriksson@mandrakesoft.com> 2.25b-2mdk
+- added .htaccess support (P2)
+
+* Fri Jun 18 2004 Oden Eriksson <oeriksson@mandrakesoft.com> 2.25b-1mdk
+- 2.25b
+- drop the dietlibc stuff...
+- fixed S1
+- added P0, P1, S4 and S5
+- misc spec file fixes
+

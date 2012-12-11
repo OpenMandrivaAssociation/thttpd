@@ -1,0 +1,66 @@
+#!/bin/bash
+# Startup script for the thttpd wed server
+#
+# chkconfig: 345 85 15
+# description: thttpd is a very fast web server.
+# 
+# processname: thttpd
+# pidfile: /var/run/thttpd/thttpd.pid
+# config: /etc/thttpd.conf
+### BEGIN INIT INFO
+# Provides: thttpd
+# Short-Description: thttpd is a very fast web server.
+# Default-Start: 3 4 5
+# Required-Start: $network
+# Required-Stop: $network
+### END INIT INFO
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+# Source networking configuration.
+. /etc/sysconfig/network
+
+# Check that networking is up.
+[ ${NETWORKING} = "no" ] && exit 0
+
+# Source spamd configuration.
+if [ -f /etc/sysconfig/thttpd ] ; then
+        . /etc/sysconfig/thttpd
+else
+        OPTIONS="-C /etc/thttpd.conf"
+fi
+
+[ -x /usr/sbin/thttpd ] || exit 0
+
+# See how we were called.
+case "$1" in
+  start)
+	echo -n "Starting thttpd: "
+	daemon thttpd $OPTIONS
+	RETVAL=$?
+	echo
+	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/thttpd
+	;;
+  stop)
+	echo -n "Shutting down thttpd: "
+	killproc thttpd
+	RETVAL=$?
+	echo
+	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/thttpd
+	;;
+  status)
+	status thttpd
+	RETVAL=$?
+	;;
+  restart|reload)
+	$0 stop
+	$0 start
+	RETVAL=$?
+	;;
+  *)
+	echo "Usage: thttpd {start|stop|status|restart|reload}"
+	exit 1
+esac
+
+exit $RETVAL
