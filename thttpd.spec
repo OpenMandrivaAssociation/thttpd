@@ -1,22 +1,21 @@
 %define _default_patch_fuzz 2
-
-%define	name	thttpd
-%define	version	2.25b
-%define	release	%mkrel 10
+%define webroot /var/lib/thttpd
 
 Summary:	Throttleable lightweight httpd server
-Name:		%{name}
-Version:	%{version}
-Release:	%{release}
+
+Name:		thttpd
+Version:	2.25b
+Release:	13
 License:	BSD
 Group:		System/Servers
 URL:		http://www.acme.com/software/thttpd
 Source0:	%{name}-%{version}.tar.bz2
-Source1:	%{name}.init
+Source1:	%{name}.service
 Source2:	%{name}.conf
 Source3:	%{name}.logrotate
 Source4:	%{name}.sysconfig
 Source5:	%{name}-index.html
+Source11:	%{name}_powered_3.png
 # http://rekl.yi.org/thttpd/pub/patch-thttpd-2.25b-re1
 Patch0:		patch-thttpd-2.25b-re1
 # http://jonas.fearmuffs.net/software/thttpd/thttpd-2.25b+impan-pl5.diff.gz
@@ -27,7 +26,6 @@ Patch3:		thttpd-2.25b-getline_conflict_fix.diff
 Requires(post,preun):	rpm-helper
 Provides:	webserver
 BuildRequires:	zlib-devel
-BuildRoot:	%{_tmppath}/%{name}-buildroot
 
 %description
 Thttpd is a very compact no-frills httpd serving daemon that can
@@ -53,74 +51,82 @@ echo "# put some css in here for custom error messages" > error.css
 echo "<b>This directory contains 'el cheapo' style web links.</b>" > .description
 
 %build
-
 %configure
+# Hacks :-)
+perl -pi -e 's/-o bin -g bin//g' Makefile
+perl -pi -e 's/-m 444/-m 644/g; s/-m 555/-m 755/g' Makefile
+perl -pi -e 's/.*chgrp.*//g; s/.*chmod.*//g' extras/Makefile
+# Config changes
+%{?_without_indexes:      perl -pi -e 's/#define GENERATE_INDEXES/#undef GENERATE_INDEXES/g' config.h}
+%{!?_with_showversion:    perl -pi -e 's/#define SHOW_SERVER_VERSION/#undef SHOW_SERVER_VERSION/g' config.h}
+%{!?_with_expliciterrors: perl -pi -e 's/#define EXPLICIT_ERROR_PAGES/#undef EXPLICIT_ERROR_PAGES/g' config.h}
 
+# (list SUBDIRS to exclude "cgi-src")
 %make \
-    prefix=%{_prefix} \
-    BINDIR=%{_sbindir} \
-    MANDIR=%{_mandir} \
-    WEBDIR=/var/lib/%{name} \
-    WEBGROUP=%{name} \
-    CGIBINDIR=/var/lib/%{name}/cgi-bin
+    SUBDIRS="extras" \
+    WEBDIR=%{webroot} \
+    STATICFLAG="" \
+    CCOPT="%{optflags} -D_FILE_OFFSET_BITS=64"
+
 
 %install
-[ "%{buildroot}" != "/" ] && rm -rf %{buildroot}
-
 # make some directories
-install -d %{buildroot}%{_initrddir}
-install -d %{buildroot}%{_sysconfdir}/{sysconfig,logrotate.d}
-install -d %{buildroot}/var/lib/%{name}/{cgi-bin,errors,styles,links}
-install -d %{buildroot}/var/log/%{name}
-install -d %{buildroot}/var/run/%{name}
-install -d %{buildroot}%{_sbindir}
-install -d %{buildroot}%{_mandir}/man{1,8}
+# Prepare required directories
+mkdir -p %{buildroot}%{webroot}
+mkdir -p %{buildroot}%{_mandir}/man{1,8}
+mkdir -p %{buildroot}%{_sbindir}
+mkdir -p %{buildroot}%{_unitdir}
 
-# install binaries
-install -m0755 %{name} %{buildroot}%{_sbindir}/%{name}
-install -m0755 extras/htpasswd %{buildroot}%{_sbindir}/%{name}-htpasswd
-install -m0755 extras/makeweb %{buildroot}%{_sbindir}/
-install -m0755 extras/syslogtocern %{buildroot}%{_sbindir}/
-install -m0755 cgi-bin/printenv %{buildroot}/var/lib/%{name}/cgi-bin/printenv.cgi
-install -m0755 cgi-src/phf %{buildroot}/var/lib/%{name}/cgi-bin/
-install -m0755 cgi-src/redirect %{buildroot}/var/lib/%{name}/cgi-bin/
-install -m0755 cgi-src/ssi %{buildroot}/var/lib/%{name}/cgi-bin/
+# Install init script and logrotate entry
+install -Dpm 0644 %{SOURCE1} %{buildroot}%{_unitdir}/
+install -Dpm 0644 %{SOURCE2} %{buildroot}%{_sysconfdir}/logrotate.d/thttpd
 
-# install man pages
-install -m0644 cgi-src/redirect.8 %{buildroot}%{_mandir}/man8/
-install -m0644 cgi-src/ssi.8 %{buildroot}%{_mandir}/man8/
-install -m0644 extras/htpasswd.1 %{buildroot}%{_mandir}/man1/%{name}-htpasswd.1
-install -m0644 extras/makeweb.1 %{buildroot}%{_mandir}/man1/
-install -m0644 extras/syslogtocern.8 %{buildroot}%{_mandir}/man8/
-install -m0644 thttpd.8 %{buildroot}%{_mandir}/man8/
+# Main install (list SUBDIRS to exclude "cgi-src")
+%make install SUBDIRS="extras" \
+    BINDIR=%{buildroot}%{_sbindir} \
+    MANDIR=%{buildroot}%{_mandir} \
+    WEBDIR=%{buildroot}%{webroot}
 
-# install config files
-install -m0755 %{SOURCE1} %{buildroot}%{_initrddir}/%{name}
-install -m0644 %{SOURCE2} %{buildroot}%{_sysconfdir}/%{name}.conf
-install -m0644 %{SOURCE3} %{buildroot}%{_sysconfdir}/logrotate.d/%{name}
-install -m0644 %{SOURCE4} %{buildroot}%{_sysconfdir}/sysconfig/%{name}
+# Rename htpasswd in case apache is installed too
+mkdir -p %{buildroot}%{_bindir}
+mv %{buildroot}%{_sbindir}/htpasswd \
+        %{buildroot}%{_bindir}/thtpasswd
+mv %{buildroot}%{_mandir}/man1/htpasswd.1 \
+        %{buildroot}%{_mandir}/man1/thtpasswd.1
 
-# install web contents
-install -m0644 %{SOURCE5} %{buildroot}/var/lib/%{name}/index.html
-install -m0644 dirlist.css %{buildroot}/var/lib/%{name}/styles/
-install -m0644 error.css %{buildroot}/var/lib/%{name}/styles/
-install -m0644 .description %{buildroot}/var/lib/%{name}/links/
+# Install the default index.html and related files
+install -pm 0644 %{SOURCE5} %{SOURCE11} \
+    %{buildroot}%{webroot}/
 
-ln -snf "http://rekl.yi.org/thttpd/pub/patch-thttpd-2.25b-re1" \
-    %{buildroot}/var/lib/%{name}/links/patch-thttpd-2.25b-re1
-ln -snf "http://jonas.fearmuffs.net/software/thttpd/thttpd-2.25b+impan-pl5.diff.gz" \
-    %{buildroot}/var/lib/%{name}/links/thttpd-2.25b+impan-pl5.diff.gz
-ln -snf "http://www.acme.com/software/thttpd/thttpd-2.25b.tar.gz" \
-    %{buildroot}/var/lib/%{name}/links/thttpd-2.25b.tar.gz
+# Symlink for the powered-by-$DISTRO image
+%{__ln_s} %{_datadir}/pixmaps/poweredby.png \
+    %{buildroot}%{webroot}/poweredby.png
 
-%clean
-[ "%{buildroot}" != "/" ] && rm -rf %{buildroot}
+# Install a default configuration file
+cat << EOF > %{buildroot}%{_sysconfdir}/thttpd.conf
+# BEWARE : No empty lines are allowed!
+# This section overrides defaults
+dir=%{webroot}
+chroot
+user=thttpd         # default = nobody
+logfile=/var/log/thttpd.log
+pidfile=/var/run/thttpd.pid
+# This section _documents_ defaults in effect
+# port=80
+# nosymlink         # default = !chroot
+# novhost
+# nocgipat
+# nothrottles
+# host=0.0.0.0
+# charset=iso-8859-1
+EOF
+
 
 %post
-%_post_service %{name}
+%systemd_post %{name}
 
 %preun
-%_preun_service %{name}
+%systemd_preun %{name}
 
 %pre 
 %_pre_useradd %{name} /var/lib/%{name} /bin/sh
@@ -129,78 +135,13 @@ ln -snf "http://www.acme.com/software/thttpd/thttpd-2.25b.tar.gz" \
 %_postun_userdel %{name}
 
 %files
-%defattr(-,root,root)
 %doc README TODO
-%config(noreplace) %attr(0644,root,root) %{_sysconfdir}/%{name}.conf
-%config(noreplace) %attr(0755,root,root) %{_initrddir}/%{name}
-%config(noreplace) %attr(0644,root,root) %{_sysconfdir}/logrotate.d/%{name}
-%config(noreplace) %attr(0644,root,root) %{_sysconfdir}/sysconfig/%{name}
-%config(noreplace) %attr(0644,root,root) /var/lib/%{name}/styles/*.css
-%config(noreplace) %attr(0644,root,root) /var/lib/%{name}/index.html
+%{_unitdir}/thttpd.service
+%config(noreplace) %{_sysconfdir}/logrotate.d/thttpd
+%config(noreplace) %{_sysconfdir}/thttpd.conf
+%{_bindir}/thtpasswd
+%{_sbindir}/syslogtocern
+%{_sbindir}/thttpd
+%{webroot}/
 %attr(2755,%{name},%{name}) %{_sbindir}/makeweb
-%attr(0755,root,root) %{_sbindir}/%{name}-htpasswd
-%attr(0755,root,root) %{_sbindir}/syslogtocern
-%attr(0755,root,root) %{_sbindir}/%{name}
-%attr(0755,%{name},%{name}) %dir /var/lib/%{name}
-%attr(0755,%{name},%{name}) %dir /var/lib/%{name}/cgi-bin
-%attr(0755,%{name},%{name}) %dir /var/log/%{name}
-%attr(0755,%{name},%{name}) %dir /var/run/%{name}
-%attr(0755,root,root) /var/lib/%{name}/cgi-bin/printenv.cgi
-%attr(0755,root,root) /var/lib/%{name}/cgi-bin/phf
-%attr(0755,root,root) /var/lib/%{name}/cgi-bin/redirect
-%attr(0755,root,root) /var/lib/%{name}/cgi-bin/ssi
-%attr(0644,root,root) %{_mandir}/man*/*
-%attr(0644,%{name},%{name}) /var/lib/%{name}/links/.description
-%attr(0644,%{name},%{name}) /var/lib/%{name}/links/*
-
-
-
-
-%changelog
-* Mon Oct 05 2009 Oden Eriksson <oeriksson@mandriva.com> 2.25b-10mdv2010.0
-+ Revision: 454070
-- fix build
-- allow fuzzy patches
-- rebuild
-
-  + Thierry Vignaud <tvignaud@mandriva.com>
-    - rebuild
-
-* Sun Aug 03 2008 Thierry Vignaud <tvignaud@mandriva.com> 2.25b-8mdv2009.0
-+ Revision: 261533
-- rebuild
-
-* Wed Jul 30 2008 Thierry Vignaud <tvignaud@mandriva.com> 2.25b-7mdv2009.0
-+ Revision: 254504
-- rebuild
-
-* Fri Dec 21 2007 Olivier Blin <oblin@mandriva.com> 2.25b-5mdv2008.1
-+ Revision: 136546
-- restore BuildRoot
-
-  + Thierry Vignaud <tvignaud@mandriva.com>
-    - fix prereq on rpm-helper
-    - kill re-definition of %%buildroot on Pixel's request
-
-
-* Tue Mar 13 2007 Gustavo De Nardin <gustavodn@mandriva.com> 2.25b-5mdv2007.1
-+ Revision: 142138
-- added LSB headers to init script
-- bunzipped plaintext Sources
-
-* Sun Jan 08 2006 Oden Eriksson <oeriksson@mandriva.com> 2.25b-4mdk
-- rebuild
-
-* Sun Dec 19 2004 Oden Eriksson <oeriksson@mandrakesoft.com> 2.25b-3mdk
-- the index.html file was incorrect, fixed
-
-* Tue Nov 16 2004 Oden Eriksson <oeriksson@mandrakesoft.com> 2.25b-2mdk
-- added .htaccess support (P2)
-
-* Fri Jun 18 2004 Oden Eriksson <oeriksson@mandrakesoft.com> 2.25b-1mdk
-- 2.25b
-- drop the dietlibc stuff...
-- fixed S1
-- added P0, P1, S4 and S5
-- misc spec file fixes
-
+%{_mandir}/man?/*

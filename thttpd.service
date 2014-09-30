@@ -1,0 +1,12 @@
+[Unit]
+Description=Tiny/Turbo/Throttling Web Server
+After=syslog.target network.target
+
+[Service]
+Type=forking
+PIDFile=/var/run/thttpd.pid
+EnvironmentFile=/etc/sysconfig/thttpd
+ExecStart=/usr/sbin/thttpd -C /etc/thttpd.conf -i /var/run/thttpd.pid
+
+[Install]
+WantedBy=multi-user.target
