@@ -5,7 +5,7 @@ Summary:	Throttleable lightweight httpd server
 
 Name:		thttpd
 Version:	2.25b
-Release:	13
+Release:	14
 License:	BSD
 Group:		System/Servers
 URL:		http://www.acme.com/software/thttpd
