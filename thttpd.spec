@@ -122,17 +122,17 @@ pidfile=/var/run/thttpd.pid
 EOF
 
 
-%post
-%systemd_post %{name}
+#post
+#systemd_post %{name}
 
-%preun
-%systemd_preun %{name}
+#preun
+#systemd_preun %{name}
 
-%pre 
-%_pre_useradd %{name} /var/lib/%{name} /bin/sh
+#pre 
+#_pre_useradd %{name} /var/lib/%{name} /bin/sh
 
-%postun
-%_postun_userdel %{name}
+#postun
+#_postun_userdel %{name}
 
 %files
 %doc README TODO
