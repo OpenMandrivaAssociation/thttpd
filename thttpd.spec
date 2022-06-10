@@ -19,10 +19,10 @@ Source11:	%{name}_powered_3.png
 # http://rekl.yi.org/thttpd/pub/patch-thttpd-2.25b-re1
 Patch0:		patch-thttpd-2.25b-re1
 # http://jonas.fearmuffs.net/software/thttpd/thttpd-2.25b+impan-pl5.diff.gz
-Patch1:		thttpd-2.25b+impan-pl5.diff
+#Patch1:		thttpd-2.25b+impan-pl5.diff
 # http://www.ogris.de/thttpd/thttpd-2.25b.access.patch.diff
-Patch2:		thttpd-2.25b.access.patch.diff
-Patch3:		thttpd-2.25b-getline_conflict_fix.diff
+#Patch2:		thttpd-2.25b.access.patch.diff
+#Patch3:		thttpd-2.25b-getline_conflict_fix.diff
 Requires(post,preun):	rpm-helper
 Provides:	webserver
 BuildRequires:	zlib-devel
@@ -39,9 +39,9 @@ the ability to throttle traffic.
 
 %setup -q
 %patch0 -p1
-%patch1 -p1
-%patch2 -p1
-%patch3 -p0
+#patch1 -p1
+#patch2 -p1
+#patch3 -p0
 
 # tag the default index.html page
 perl -pi -e "s|_NAME_-_VERSION_|%{name}-%{version}|g" %{name}-index.html
