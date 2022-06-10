@@ -9,7 +9,7 @@ Release:	1
 License:	BSD
 Group:		System/Servers
 URL:		http://www.acme.com/software/thttpd
-Source0:	http://www.acme.com/software/thttpd/thttpd-%{version].tar.gz
+Source0:	http://www.acme.com/software/thttpd/thttpd-%{version}.tar.gz
 Source1:	%{name}.service
 Source2:	%{name}.conf
 Source3:	%{name}.logrotate
