@@ -25,6 +25,11 @@ Patch0:		patch-thttpd-2.25b-re1
 #Patch3:		thttpd-2.25b-getline_conflict_fix.diff
 Requires(post,preun):	rpm-helper
 Provides:	webserver
+BuildRequires:	autoconf
+BuildRequires:	automake
+BuildRequires:	libtool-base
+BuildRequires:	slibtool
+BuildRequires:	make
 BuildRequires:	zlib-devel
 
 %description
